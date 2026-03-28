@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Expiry Review</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #475569;
+    }
+    .confirm-area {
+      margin-top: 20px;
+      display: flex;
+      justify-content: flex-end;
+    }
+    .expiry-row.low {
+      background: #fecdd3;
+      border-color: #fca5a5;
+    }
+    .expiry-row.medium {
+      background: #fef08a;
+      border-color: #facc15;
+    }
+    .expiry-row.high {
+      background: #dcfce7;
+      border-color: #86efac;
+    }
+    .expiry-row.unknown {
+      background: #e2e8f0;
+      border-color: #cbd5e1;
+    }
+  </style>
+</head>
+<body>
+  <main class="container" style="max-width: 520px;">
+    <h1>Review Expiry Dates</h1>
+    <p>Confirm the items and their estimated expiry dates.</p>
+
+    <div class="header-row" style="align-items: center;">
+      <span>Cumulative Total</span>
+      <span id="total-value">–</span>
+    </div>
+
+    <div class="header-row">
+      <span>Item</span>
+      <span>Expiry</span>
+    </div>
+    <div id="expiry-list"></div>
+
+    <div class="confirm-area">
+      <button id="confirm-btn">List looks correct</button>
+      <button id="back-btn" style="margin-left: 10px;">Back to upload</button>
+      <button id="dashboard-btn" style="margin-left: 10px;">Go to dashboard</button>
+    </div>
+  </main>
+
+  <script>
+    // Pull expiry data from localStorage (set in upload.html after the API call).
+    const storedRaw = localStorage.getItem('expiryList');
+    let items = [];
+    let total = null;
+    let cumulativeTotal = null;
+
+    function loadFromLocal() {
+      if (storedRaw) {
+        try {
+          const parsed = JSON.parse(storedRaw);
+          if (Array.isArray(parsed)) {
+            items = parsed;
+          } else {
+            items = parsed.items || [];
+            total = parsed.total ?? parsed.receipt_total ?? null;
+            cumulativeTotal = parsed.cumulativeTotal ?? parsed.cumulative_total ?? null;
+          }
+        } catch (_) {
+          items = [];
+        }
+      }
+    }
+    loadFromLocal();
+
+    const listEl = document.getElementById('expiry-list');
+    const confirmBtn = document.getElementById('confirm-btn');
+    const backBtn = document.getElementById('back-btn');
+    const dashboardBtn = document.getElementById('dashboard-btn');
+    const totalValue = document.getElementById('total-value');
+
+    function daysUntil(dateStr) {
+      const target = new Date(dateStr);
+      if (Number.isNaN(target.getTime())) return null;
+      const now = new Date();
+      const diffMs = target.setHours(0,0,0,0) - now.setHours(0,0,0,0);
+      return Math.round(diffMs / (1000 * 60 * 60 * 24));
+    }
+
+    function statusClass(expiry) {
+      const days = daysUntil(expiry);
+      if (days === null) return 'unknown';
+      if (days < 3) return 'low';
+      if (days <= 5) return 'medium';
+      return 'high';
+    }
+
+    function renderRows(data) {
+      listEl.innerHTML = '';
+      data.forEach(({ name, expiry }) => {
+        const row = document.createElement('div');
+        row.className = `expiry-row ${statusClass(expiry)}`;
+
+        const left = document.createElement('span');
+        left.textContent = name || 'Unknown item';
+
+        const right = document.createElement('span');
+        right.textContent = expiry || 'N/A';
+
+        row.appendChild(left);
+        row.appendChild(right);
+        listEl.appendChild(row);
+      });
+      if (!data.length) {
+        listEl.textContent = 'No items available yet. Upload a receipt first.';
+      }
+    }
+
+    confirmBtn.addEventListener('click', () => {
+      alert('Thanks! List confirmed.');
+    });
+
+    backBtn.addEventListener('click', () => {
+      window.location.href = 'upload.html';
+    });
+
+    dashboardBtn.addEventListener('click', () => {
+      window.location.href = 'dashboard.html';
+    });
+
+    async function refreshFromApi() {
+      try {
+        const res = await fetch('http://localhost:8000/session/state');
+        if (!res.ok) return;
+        const apiData = await res.json();
+        if (apiData) {
+          items = apiData.items || items;
+          total = apiData.total ?? total;
+          cumulativeTotal = apiData.cumulativeTotal ?? apiData.cumulative_total ?? cumulativeTotal;
+          localStorage.setItem('expiryList', JSON.stringify({ items, total, cumulativeTotal }));
+        }
+      } catch (_) {
+        // fallback to local only
+      }
+    }
+
+    function renderTotal() {
+      const displayTotal = cumulativeTotal ?? total;
+      const numericTotal = (() => {
+        if (typeof displayTotal === 'number' && Number.isFinite(displayTotal)) return displayTotal;
+        if (displayTotal !== null && displayTotal !== undefined) {
+          const cleaned = String(displayTotal).replace(/[^0-9.]/g, '');
+          const parsed = parseFloat(cleaned);
+          if (Number.isFinite(parsed)) return parsed;
+        }
+        return null;
+      })();
+
+      totalValue.textContent = numericTotal !== null
+        ? `$${numericTotal.toFixed(2)}`
+        : 'Not found yet';
+    }
+
+    function renderAll() {
+      renderTotal();
+      renderRows(items);
+    }
+
+    // Initial render from localStorage
+    renderAll();
+
+    // Attempt backend refresh, then re-render when done.
+    refreshFromApi().then(renderAll);
+  </script>
+</body>
+</html>

@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload Receipt - ReceiptIQ</title>
+  <meta name="description" content="Scan your receipt and extract expiry-ready items.">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header upload-header">
+    <div class="container">
+      <div class="header-inner">
+        <a href="index.html" class="logo">
+          <div class="logo-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/>
+              <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/>
+              <path d="M12 17.5v-11"/>
+            </svg>
+          </div>
+          <span class="logo-text">ReceiptIQ</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Upload Section -->
+  <section class="upload-section">
+    <div class="container">
+      <h1 class="upload-title">Upload Your Receipt</h1>
+      <p class="upload-subtitle">Drag and drop or click to upload your receipt image</p>
+
+      <!-- Idle State - Upload Area -->
+      <div id="upload-idle" class="upload-state active">
+        <div class="upload-area" id="upload-area">
+          <input type="file" id="file-input" accept="image/*" aria-label="Upload receipt image">
+          <div class="upload-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" x2="12" y1="3" y2="15"/>
+            </svg>
+          </div>
+          <p class="upload-text-primary">Drag & drop your receipt</p>
+          <p class="upload-text-secondary">or click to browse from your device</p>
+          <div class="upload-formats">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/>
+              <path d="M14 2v4a2 2 0 0 0 2 2h4"/>
+              <circle cx="10" cy="12" r="2"/>
+              <path d="m20 17-1.296-1.296a2.41 2.41 0 0 0-3.408 0L9 22"/>
+            </svg>
+            <span>PNG, JPG, HEIC</span>
+            <span>|</span>
+            <span>Max 10MB</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Processing State -->
+      <div id="upload-processing" class="upload-state">
+        <div class="processing-card">
+          <div class="spinner" aria-hidden="true"></div>
+          <p class="processing-title" id="processing-title">Uploading...</p>
+          <p class="processing-text" id="processing-text">Please wait while we upload your image</p>
+        </div>
+      </div>
+
+      <!-- Success State -->
+      <div id="upload-success" class="upload-state">
+        <div class="success-header">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <path d="m9 11 3 3L22 4"/>
+          </svg>
+          <div>
+            <p class="success-title">Receipt analyzed successfully!</p>
+            <p class="success-text">We extracted <span id="items-count">0</span> items from your receipt</p>
+          </div>
+          <button class="close-btn" id="reset-btn" aria-label="Upload another receipt">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 6 6 18"/>
+              <path d="m6 6 12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="results-grid">
+          <!-- Receipt Preview -->
+          <div class="result-card">
+            <div class="result-card-header">Receipt Image</div>
+            <div class="result-card-body">
+              <img src="" alt="Receipt preview" class="preview-image" id="preview-image">
+            </div>
+          </div>
+
+          <!-- Receipt Details -->
+          <div class="result-card">
+            <div class="result-card-header">Receipt Details</div>
+            <div class="result-card-body">
+              <div class="detail-row">
+                <span class="detail-label">File</span>
+                <span class="detail-value" id="detail-file">–</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Status</span>
+                <span class="detail-value" id="detail-status">Ready</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Redirect</span>
+                <span class="detail-value" id="detail-redirect">Sending to review…</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Items List -->
+        <div class="items-card">
+          <div class="items-header">
+            <h3>Extracted Items</h3>
+            <span class="items-count" id="items-count-label">0 items</span>
+          </div>
+          <div id="items-list"></div>
+        </div>
+
+        <div class="action-buttons">
+          <button class="btn btn-primary btn-lg" id="scan-another-btn" type="button">Scan Another Receipt</button>
+          <button class="btn btn-outline btn-lg" id="view-expiry-btn" type="button">View Expiry List</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    const uploadArea = document.getElementById('upload-area');
+    const fileInput = document.getElementById('file-input');
+    const uploadIdle = document.getElementById('upload-idle');
+    const uploadProcessing = document.getElementById('upload-processing');
+    const uploadSuccess = document.getElementById('upload-success');
+    const processingTitle = document.getElementById('processing-title');
+    const processingText = document.getElementById('processing-text');
+    const previewImage = document.getElementById('preview-image');
+    const resetBtn = document.getElementById('reset-btn');
+    const scanAnotherBtn = document.getElementById('scan-another-btn');
+    const viewExpiryBtn = document.getElementById('view-expiry-btn');
+    const itemsCount = document.getElementById('items-count');
+    const itemsCountLabel = document.getElementById('items-count-label');
+    const itemsList = document.getElementById('items-list');
+    const detailFile = document.getElementById('detail-file');
+    const detailStatus = document.getElementById('detail-status');
+    const detailRedirect = document.getElementById('detail-redirect');
+
+    // Parse a currency/number-ish value into a float, or null if not parseable.
+    function parseAmount(value) {
+      if (value === null || value === undefined) return null;
+      if (typeof value === 'number' && Number.isFinite(value)) return value;
+      if (typeof value === 'string') {
+        const cleaned = value.replace(/[^0-9.]/g, '');
+        const parsed = parseFloat(cleaned);
+        return Number.isFinite(parsed) ? parsed : null;
+      }
+      return null;
+    }
+
+    // Click to upload
+    uploadArea.addEventListener('click', () => fileInput.click());
+
+    // Drag and drop
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) {
+        handleFile(file);
+      }
+    });
+
+    // File input change
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        handleFile(file);
+      }
+    });
+
+    function showState(state) {
+      uploadIdle.classList.remove('active');
+      uploadProcessing.classList.remove('active');
+      uploadSuccess.classList.remove('active');
+
+      if (state === 'idle') uploadIdle.classList.add('active');
+      if (state === 'processing') uploadProcessing.classList.add('active');
+      if (state === 'success') uploadSuccess.classList.add('active');
+    }
+
+    function setProcessing(title, text) {
+      processingTitle.textContent = title;
+      processingText.textContent = text;
+    }
+
+    function renderItems(items) {
+      itemsList.innerHTML = '';
+      if (!items.length) {
+        itemsList.innerHTML = '<div class="item-row"><span class="item-name">No items detected yet.</span></div>';
+        itemsCount.textContent = '0';
+        itemsCountLabel.textContent = '0 items';
+        return;
+      }
+
+      items.forEach(({ name, expiry }) => {
+        const row = document.createElement('div');
+        row.className = 'item-row';
+
+        const info = document.createElement('div');
+        info.className = 'item-info';
+
+        const title = document.createElement('p');
+        title.className = 'item-name';
+        title.textContent = name || 'Unknown item';
+
+        const expiryEl = document.createElement('p');
+        expiryEl.className = 'item-expiry';
+        expiryEl.textContent = expiry || 'No expiry provided';
+
+        info.appendChild(title);
+        info.appendChild(expiryEl);
+
+        row.appendChild(info);
+        itemsList.appendChild(row);
+      });
+
+      itemsCount.textContent = items.length;
+      itemsCountLabel.textContent = `${items.length} ${items.length === 1 ? 'item' : 'items'}`;
+    }
+
+    let redirectTimer1 = null;
+    let redirectTimer2 = null;
+
+    function clearRedirectTimers() {
+      if (redirectTimer1) clearTimeout(redirectTimer1);
+      if (redirectTimer2) clearTimeout(redirectTimer2);
+      redirectTimer1 = redirectTimer2 = null;
+    }
+
+    async function uploadAndOCR(file) {
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      showState('processing');
+      setProcessing('Uploading...', 'Please wait while we upload your image');
+      detailStatus.textContent = 'Uploading…';
+
+      try {
+        const response = await fetch('http://localhost:8000/ocr/expiry', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Request failed: ${response.status} ${errorText}`);
+        }
+
+        setProcessing('Analyzing receipt...', 'Extracting items, prices, and expiry dates');
+        detailStatus.textContent = 'Analyzing…';
+
+        const result = await response.json();
+        const estimated = result.estimated_items || {};
+
+        // Support new shape: { items: {name: date}, receipt_total: <number|string> }
+        const itemsSource = estimated.items && typeof estimated.items === 'object' ? estimated.items : estimated;
+        const receiptTotal = estimated.receipt_total ?? estimated.total ?? estimated.total_amount ?? null;
+        const receiptNumeric = parseAmount(receiptTotal);
+
+        const newItems = Object.entries(itemsSource || {}).map(([name, expiry]) => ({ name, expiry }));
+
+        // Merge with any existing stored list so receipts accumulate locally.
+        const storedRaw = localStorage.getItem('expiryList');
+        let stored = { items: [], total: null, cumulativeTotal: 0 };
+        if (storedRaw) {
+          try {
+            stored = JSON.parse(storedRaw);
+          } catch (_) {
+            stored = { items: [], total: null, cumulativeTotal: 0 };
+          }
+        }
+        const mergedItems = [...(stored.items || []), ...newItems];
+        const mergedTotal = receiptTotal ?? stored.total ?? null;
+        let cumulativeTotal = typeof stored.cumulativeTotal === 'number' && Number.isFinite(stored.cumulativeTotal)
+          ? stored.cumulativeTotal
+          : 0;
+        if (receiptNumeric !== null) {
+          cumulativeTotal = Number((cumulativeTotal + receiptNumeric).toFixed(2));
+        }
+
+        const statePayload = { items: mergedItems, total: mergedTotal, cumulativeTotal };
+
+        localStorage.setItem('expiryList', JSON.stringify(statePayload));
+
+        // Persist to backend so other pages can reload state even if storage is cleared.
+        try {
+          await fetch('http://localhost:8000/session/store', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(statePayload)
+          });
+        } catch (_) {
+          // Non-blocking; keep going if offline.
+        }
+
+        // Populate success UI
+        renderItems(newItems);
+        detailFile.textContent = result.filename || file.name || 'Receipt';
+        detailStatus.textContent = 'Completed';
+        detailRedirect.textContent = 'Opening expiry review…';
+        showState('success');
+
+        clearRedirectTimers();
+        const goExpiry = () => {
+          try {
+            window.location.href = 'expiry.html';
+          } catch (_) {
+            /* ignore */
+          }
+        };
+        // Immediate navigation with a short fallback to handle slow renderers.
+        goExpiry();
+
+      } catch (err) {
+        setProcessing('Upload failed', err.message || 'Something went wrong. Please try again.');
+        detailStatus.textContent = 'Error';
+        detailRedirect.textContent = 'Stay on this page';
+        showState('processing');
+      }
+    }
+
+    function handleFile(file) {
+      const url = URL.createObjectURL(file);
+      previewImage.src = url;
+      detailFile.textContent = file.name || 'Receipt';
+      clearRedirectTimers();
+      uploadAndOCR(file);
+    }
+
+    function resetUpload() {
+      fileInput.value = '';
+      previewImage.src = '';
+      detailFile.textContent = '–';
+      detailStatus.textContent = 'Ready';
+      detailRedirect.textContent = 'Waiting for upload';
+      itemsList.innerHTML = '';
+      itemsCount.textContent = '0';
+      itemsCountLabel.textContent = '0 items';
+      clearRedirectTimers();
+      showState('idle');
+    }
+
+    resetBtn.addEventListener('click', resetUpload);
+    scanAnotherBtn.addEventListener('click', resetUpload);
+    viewExpiryBtn.addEventListener('click', () => {
+      window.location.href = 'expiry.html';
+    });
+  </script>
+</body>
+</html>
