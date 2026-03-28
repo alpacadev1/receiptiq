@@ -20,6 +20,8 @@
     .muted { color: var(--muted-foreground); font-size:0.95rem; }
     .list { display:flex; flex-direction:column; gap:0.75rem; }
     .item-row { display:flex; align-items:center; justify-content:space-between; padding:0.75rem 0.5rem; border-bottom:1px solid var(--border); }
+    .meal-link { color: var(--foreground); font-weight:600; text-decoration:none; }
+    .meal-link:hover { color: var(--accent); }
     .chip { padding:0.25rem 0.6rem; border-radius:999px; font-size:0.8rem; font-weight:600; }
     .chip.ok { background: var(--accent-light); color: var(--accent); }
     .chip.warn { background: #fef3c7; color:#d97706; }
@@ -92,6 +94,16 @@
           <div class="list" id="expiry-list"></div>
         </div>
       </div>
+
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-header">
+          <span class="card-title">Cook This Next</span>
+          <span class="muted" id="meal-status">Waiting for items…</span>
+        </div>
+        <div class="card-body">
+          <div class="list" id="meal-list"></div>
+        </div>
+      </div>
     </div>
   </main>
 
@@ -100,6 +112,8 @@
     const backendStatus = document.getElementById('backend-status');
     const expiryList = document.getElementById('expiry-list');
     const itemCount = document.getElementById('item-count');
+    const mealList = document.getElementById('meal-list');
+    const mealStatus = document.getElementById('meal-status');
 
     let items = [];
     let total = 0;
@@ -165,6 +179,83 @@
       itemCount.textContent = `${items.length} ${items.length === 1 ? 'item' : 'items'}`;
     }
 
+    function renderMeals(meals) {
+      mealList.innerHTML = '';
+
+      if (!meals || !meals.length) {
+        mealStatus.textContent = 'No meal ideas yet.';
+        mealList.innerHTML = '<p class="muted">Upload a receipt to get tailored meal ideas.</p>';
+        return;
+      }
+
+      mealStatus.textContent = 'Ideas based on what will expire soon.';
+
+      meals.forEach(({ meal, recipe, uses }) => {
+        const row = document.createElement('div');
+        row.className = 'item-row';
+
+        const left = document.createElement('div');
+        const title = document.createElement('div');
+        title.className = 'meal-link';
+        title.textContent = meal || 'Meal idea';
+
+        const usesLine = document.createElement('div');
+        usesLine.className = 'muted';
+        usesLine.textContent = uses && uses.length ? `Uses: ${uses.join(', ')}` : 'Uses pantry staples';
+
+        const details = document.createElement('details');
+        details.style.marginTop = '6px';
+        const summary = document.createElement('summary');
+        summary.textContent = 'Show recipe';
+
+        const recipeBox = document.createElement('div');
+        recipeBox.className = 'muted';
+        const summaryText = recipe?.summary ? `<p style=\"margin:4px 0;\">${recipe.summary}</p>` : '';
+        const steps = Array.isArray(recipe?.steps) ? recipe.steps : [];
+        const stepsList = steps.length
+          ? '<ol style=\"padding-left:18px; margin:4px 0;\">' + steps.map(step => `<li>${step}</li>`).join('') + '</ol>'
+          : '<p style=\"margin:4px 0;\">Recipe steps unavailable.</p>';
+        recipeBox.innerHTML = summaryText + stepsList;
+
+        details.appendChild(summary);
+        details.appendChild(recipeBox);
+
+        left.appendChild(title);
+        left.appendChild(usesLine);
+        left.appendChild(details);
+
+        row.appendChild(left);
+        mealList.appendChild(row);
+      });
+    }
+
+    async function fetchMealIdeas() {
+      if (!items.length) {
+        mealStatus.textContent = 'Add a receipt to get meal ideas.';
+        mealList.innerHTML = '';
+        return;
+      }
+
+      mealStatus.textContent = 'Fetching ideas…';
+      try {
+        const res = await fetch('http://localhost:8000/meals/from-expiry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items })
+        });
+
+        if (!res.ok) {
+          throw new Error('Meal API unavailable');
+        }
+
+        const data = await res.json();
+        renderMeals(data.meals || []);
+      } catch (err) {
+        mealStatus.textContent = 'Could not load meal ideas.';
+        mealList.innerHTML = '<p class="muted">Try again after reloading the page.</p>';
+      }
+    }
+
     async function refreshFromApi() {
       try {
         backendStatus.textContent = 'Talking to API…';
@@ -193,7 +284,11 @@
     refreshFromApi().then(() => {
       renderTotals();
       renderItems();
+      fetchMealIdeas();
     });
+
+    // Also attempt immediately with locally cached items
+    fetchMealIdeas();
   </script>
 </body>
 </html>
