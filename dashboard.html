@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard - ReceiptIQ</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    .page { padding: 7rem 0 4rem; }
+    .dash-grid { display: grid; gap: 1.5rem; }
+    @media (min-width: 960px) { .dash-grid { grid-template-columns: 2fr 1.2fr; } }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 1rem; overflow: hidden; }
+    .card-header { display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; border-bottom:1px solid var(--border); }
+    .card-title { font-weight:600; font-size:1.1rem; }
+    .card-body { padding: 1.25rem; }
+    .spend-main { font-size:2.4rem; font-weight:700; color: var(--accent); }
+    .muted { color: var(--muted-foreground); font-size:0.95rem; }
+    .list { display:flex; flex-direction:column; gap:0.75rem; }
+    .item-row { display:flex; align-items:center; justify-content:space-between; padding:0.75rem 0.5rem; border-bottom:1px solid var(--border); }
+    .chip { padding:0.25rem 0.6rem; border-radius:999px; font-size:0.8rem; font-weight:600; }
+    .chip.ok { background: var(--accent-light); color: var(--accent); }
+    .chip.warn { background: #fef3c7; color:#d97706; }
+    .chip.danger { background: #fee2e2; color:#dc2626; }
+    .cta-row { display:flex; gap:0.75rem; margin-top:1rem; flex-wrap:wrap; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="container">
+      <div class="header-inner">
+        <a href="index.html" class="logo">
+          <div class="logo-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/>
+              <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/>
+              <path d="M12 17.5v-11"/>
+            </svg>
+          </div>
+          <span class="logo-text">ReceiptIQ</span>
+        </a>
+        <nav class="nav-desktop">
+          <a href="index.html" class="nav-link">Home</a>
+          <a href="dashboard.html" class="nav-link" style="color: var(--foreground); font-weight: 600;">Dashboard</a>
+          <a href="upload.html" class="nav-link">Upload</a>
+          <a href="expiry.html" class="nav-link">Expiry</a>
+        </nav>
+        <div class="header-cta">
+          <a href="upload.html" class="btn btn-primary">Scan Receipt</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container page">
+    <div class="dash-grid">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Total Spent (this session)</span>
+          <span class="muted" id="backend-status">Checking API…</span>
+        </div>
+        <div class="card-body">
+          <p class="spend-main" id="total-spent">$0.00</p>
+          <p class="muted">Based on all receipts uploaded during this session.</p>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="upload.html">Upload another receipt</a>
+            <a class="btn btn-outline" href="expiry.html">Review expiry list</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Fast Links</span>
+        </div>
+        <div class="card-body">
+          <div class="list">
+            <a class="btn btn-outline" href="upload.html">Upload new receipt</a>
+            <a class="btn btn-outline" href="expiry.html">Expiry list</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-header">
+          <span class="card-title">Expiring Items</span>
+          <span class="muted" id="item-count">0 items</span>
+        </div>
+        <div class="card-body">
+          <div class="list" id="expiry-list"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const totalSpentEl = document.getElementById('total-spent');
+    const backendStatus = document.getElementById('backend-status');
+    const expiryList = document.getElementById('expiry-list');
+    const itemCount = document.getElementById('item-count');
+
+    let items = [];
+    let total = 0;
+    let cumulativeTotal = 0;
+
+    function parseStored(raw) {
+      if (!raw) return;
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          items = parsed;
+        } else {
+          items = parsed.items || items;
+          total = parsed.total ?? total;
+          cumulativeTotal = parsed.cumulativeTotal ?? parsed.cumulative_total ?? cumulativeTotal;
+        }
+      } catch (_) {}
+    }
+
+    function renderTotals() {
+      const display = Number.isFinite(cumulativeTotal) ? cumulativeTotal : Number(total) || 0;
+      totalSpentEl.textContent = `$${(display || 0).toFixed(2)}`;
+    }
+
+    function daysUntil(dateStr) {
+      const target = new Date(dateStr);
+      if (Number.isNaN(target.getTime())) return null;
+      const now = new Date();
+      const diffMs = target.setHours(0,0,0,0) - now.setHours(0,0,0,0);
+      return Math.round(diffMs / (1000*60*60*24));
+    }
+
+    function statusClass(days) {
+      if (days === null) return 'chip warn';
+      if (days < 3) return 'chip danger';
+      if (days <= 5) return 'chip warn';
+      return 'chip ok';
+    }
+
+    function renderItems() {
+      expiryList.innerHTML = '';
+      if (!items.length) {
+        expiryList.innerHTML = '<p class="muted">No items yet. Upload a receipt to get started.</p>';
+        itemCount.textContent = '0 items';
+        return;
+      }
+      items.forEach(({ name, expiry }) => {
+        const days = daysUntil(expiry);
+        const row = document.createElement('div');
+        row.className = 'item-row';
+
+        const left = document.createElement('div');
+        left.innerHTML = `<strong>${name || 'Unknown item'}</strong><br><span class="muted">${expiry || 'N/A'}</span>`;
+
+        const right = document.createElement('span');
+        right.className = statusClass(days);
+        right.textContent = days === null ? '—' : `${days}d`;
+
+        row.appendChild(left);
+        row.appendChild(right);
+        expiryList.appendChild(row);
+      });
+      itemCount.textContent = `${items.length} ${items.length === 1 ? 'item' : 'items'}`;
+    }
+
+    async function refreshFromApi() {
+      try {
+        backendStatus.textContent = 'Talking to API…';
+        const res = await fetch('http://localhost:8000/session/state');
+        if (!res.ok) {
+          backendStatus.textContent = 'API unavailable';
+          return;
+        }
+        const data = await res.json();
+        items = data.items || items;
+        total = data.total ?? total;
+        cumulativeTotal = data.cumulativeTotal ?? data.cumulative_total ?? cumulativeTotal;
+        localStorage.setItem('expiryList', JSON.stringify({ items, total, cumulativeTotal }));
+        backendStatus.textContent = 'API connected';
+      } catch (_) {
+        backendStatus.textContent = 'Offline (using cached data)';
+      }
+    }
+
+    // Load from localStorage first
+    parseStored(localStorage.getItem('expiryList'));
+    renderTotals();
+    renderItems();
+
+    // Then refresh from backend and re-render
+    refreshFromApi().then(() => {
+      renderTotals();
+      renderItems();
+    });
+  </script>
+</body>
+</html>
