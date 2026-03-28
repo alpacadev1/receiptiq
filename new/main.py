@@ -174,6 +174,68 @@ def run_expiry_prompt(ocr_text: str, model_name: Optional[str] = None) -> Dict[s
         ) from exc
 
 
+def run_meal_ideas_prompt(
+    items_with_expiry: Dict[str, str], model_name: Optional[str] = None
+) -> Dict[str, object]:
+    """Generate 3 home-cookable meal ideas with inline recipes using receipt items."""
+    client = get_openai_client()
+    model_to_use = model_name or DEFAULT_MODEL
+
+    # Provide the LLM a compact, deterministic snapshot of the items/expiries
+    items_payload = json.dumps(items_with_expiry, ensure_ascii=False)
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are a helpful home-cooking assistant. Create exactly 3 realistic, "
+                "home-cookable meal ideas that primarily use the provided groceries "
+                "(prioritize items expiring soon). Keep prep simple for a home kitchen. "
+                "Return raw JSON only, no markdown, matching this shape: "
+                '{"meals": [{"meal": "<name>", "uses": ["item1", "item2"], '
+                '"recipe": {"summary": "<1-2 line overview>", '
+                '"steps": ["step 1", "step 2", "step 3"]}}]}. '
+                "Each recipe must be short (5-8 concise steps), pantry-friendly, and tailored to the given items. "
+                "Do not include external links or markdown. Do not omit the recipe or steps."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Today is {date.today().isoformat()}. Here is a dictionary of items with "
+                f"their expiry dates: {items_payload}. Suggest 3 meal ideas as specified."
+            ),
+        },
+    ]
+
+    try:
+        response = client.chat.completions.create(
+            model=model_to_use,
+            messages=messages,
+        )
+
+        text = response.choices[0].message.content.strip()
+
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
+
+        result = json.loads(text)
+        meals = result.get("meals")
+        if not isinstance(meals, list) or len(meals) == 0:
+            raise ValueError("No meals returned from model")
+
+        return result
+
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=502, detail=f"OpenAI returned unparseable meal JSON: {exc}"
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502, detail=f"OpenAI meal idea request failed: {exc}"
+        ) from exc
+
+
 # -------------------------------
 # Routes
 # -------------------------------
@@ -272,6 +334,41 @@ async def get_session_state() -> JSONResponse:
     except (OSError, json.JSONDecodeError) as exc:
         raise HTTPException(status_code=500, detail=f"Failed to read session state: {exc}") from exc
     return JSONResponse(data)
+
+
+@app.post("/meals/from-expiry")
+async def meal_ideas_from_expiry(payload: dict) -> JSONResponse:
+    """Call ChatGPT to suggest 3 meal ideas based on the latest receipt items."""
+
+    def extract_items(source) -> Dict[str, str]:
+        extracted: Dict[str, str] = {}
+        if isinstance(source, list):
+            for entry in source:
+                if not isinstance(entry, dict):
+                    continue
+                name = entry.get("name") or entry.get("item")
+                expiry = entry.get("expiry") or entry.get("date") or ""
+                if name:
+                    extracted[name] = expiry
+        elif isinstance(source, dict):
+            extracted = {k: v or "" for k, v in source.items() if k}
+        return extracted
+
+    items_dict = extract_items(payload.get("items"))
+
+    if not items_dict and SESSION_STATE_PATH.exists():
+        try:
+            with SESSION_STATE_PATH.open("r", encoding="utf-8") as f:
+                stored = json.load(f)
+            items_dict = extract_items(stored.get("items"))
+        except (OSError, json.JSONDecodeError):
+            items_dict = {}
+
+    if not items_dict:
+        raise HTTPException(status_code=400, detail="No items provided to build meal ideas.")
+
+    ideas = run_meal_ideas_prompt(items_dict, model_name=payload.get("model"))
+    return JSONResponse(ideas)
 
 
 # -------------------------------
