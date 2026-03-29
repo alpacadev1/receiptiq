@@ -16,11 +16,11 @@ from openai import OpenAI
 # -------------------------------
 app = FastAPI(title="Image Uploader + OCR")
 OCR_API_URL = "https://api.ocr.space/parse/image"
-OCR_API_KEY = "K520b2d191988957"  # FIX 1: no hardcoded key
+OCR_API_KEY = ""  # FIX 1: no hardcoded key
 DEFAULT_MODEL = "gpt-4o-mini"
 SESSION_STATE_PATH = Path("uploads/session_state.json")
 
-DEFAULT_OPENAI_API_KEY = "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"
+DEFAULT_OPENAI_API_KEY = ""
 
 # Allow browser calls from any origin during development
 app.add_middleware(
