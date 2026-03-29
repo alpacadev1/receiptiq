@@ -17,6 +17,7 @@
       margin-top: 20px;
       display: flex;
       justify-content: flex-end;
+      align-items: center;
     }
     .expiry-row.low {
       background: #fecdd3;
@@ -32,7 +33,15 @@
     }
     .expiry-row.unknown {
       background: #e2e8f0;
-      border-color: #cbd5e1;
+      border-color:   #cbd5e1;
+    }
+    #back-btn, #dashboard-btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 4px;
+      background-color: black;
+      color: white;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -53,7 +62,6 @@
     <div id="expiry-list"></div>
 
     <div class="confirm-area">
-      <button id="confirm-btn">List looks correct</button>
       <button id="back-btn" style="margin-left: 10px;">Back to upload</button>
       <button id="dashboard-btn" style="margin-left: 10px;">Go to dashboard</button>
     </div>
@@ -85,7 +93,6 @@
     loadFromLocal();
 
     const listEl = document.getElementById('expiry-list');
-    const confirmBtn = document.getElementById('confirm-btn');
     const backBtn = document.getElementById('back-btn');
     const dashboardBtn = document.getElementById('dashboard-btn');
     const totalValue = document.getElementById('total-value');
@@ -126,10 +133,6 @@
         listEl.textContent = 'No items available yet. Upload a receipt first.';
       }
     }
-
-    confirmBtn.addEventListener('click', () => {
-      alert('Thanks! List confirmed.');
-    });
 
     backBtn.addEventListener('click', () => {
       window.location.href = 'upload.html';
